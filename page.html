@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>肤页</title>
+<link rel="stylesheet" href="assets/book.css">
+<link rel="stylesheet" href="assets/blood.css">
+</head>
+<body class="chapter-body">
+
+<div class="veil"></div>
+<div class="blood-fixed" aria-hidden="true"></div>
+
+<main class="page" id="page">
+  <div class="paper-blood" aria-hidden="true"></div>
+  <header class="page-head">
+    <a class="back" href="index.html">← 封面</a>
+    <div class="head-right">
+      <div class="fingerprints" id="fingerprints"></div>
+      <button class="note-toggle" id="soundToggle" type="button">声 · 开</button>
+      <button class="note-toggle" id="noteToggle" type="button">批注</button>
+      <span class="page-no" id="pageNo">第 壹 页</span>
+    </div>
+  </header>
+
+  <section class="chapter-head">
+    <span class="module-chip" id="chip"></span>
+    <h1 class="chapter-title" id="title">皮</h1>
+    <p class="chapter-meta" id="meta"></p>
+    <p class="chapter-date" id="date"></p>
+    <div class="chapter-rule"></div>
+  </section>
+
+  <section class="stage" id="stage">
+    <div class="stage-prompt" id="prompt"></div>
+    <div class="stage-body" id="stageBody"></div>
+    <div class="stage-foot"><button class="skip" id="skip" type="button">略过此页</button></div>
+  </section>
+
+  <section class="story" id="story">
+    <div class="story-body" id="storyBody"></div>
+    <button class="story-skip" id="storySkip" type="button">显示全文</button>
+  </section>
+
+  <aside class="note" id="note">
+    <div class="note-title">页边批注</div>
+    <p id="noteText"></p>
+    <span class="note-kw" id="noteKw"></span>
+    <span class="pending" id="pending"></span>
+  </aside>
+
+  <div class="stamp-bar" id="stampBar">
+    <button class="stamp-btn" id="stampBtn" type="button">按下血指印</button>
+    <div class="stamp-hint" id="stampHint">指印会留在这本书上。</div>
+  </div>
+
+  <nav class="page-nav" id="pageNav">
+    <a id="prevLink">← 上一页</a>
+    <a href="index.html">封面</a>
+    <a id="nextLink">下一页 →</a>
+  </nav>
+
+  <div class="big-finger" id="bigFinger"></div>
+</main>
+
+<div class="ending" id="ending">
+  <div class="ending-card">
+    <div class="ending-label">第 十 页</div>
+    <div class="ending-name" id="endingName">你</div>
+    <p class="ending-text" id="endingText"></p>
+    <div class="ending-actions">
+      <a href="qr.html">把书递给下一个人</a>
+      <a href="index.html">合上这本书</a>
+      <button class="close-end" id="closeEnd" type="button">先不翻</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="assets/chapters.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  var params = new URLSearchParams(location.search);
+  var id = parseInt(params.get('id') || '1', 10);
+  if (!id || id < 1 || id > 9) id = 1;
+  var ch = window.FUYE.chapters[id - 1];
+
+  var $ = function(s){ return document.querySelector(s); };
+  var pageEl = $('#page');
+  var stage = $('#stage');
+  var stageBody = $('#stageBody');
+  var storyEl = $('#story');
+  var storyBody = $('#storyBody');
+  var storySkip = $('#storySkip');
+  var stampBar = $('#stampBar');
+  var stampBtn = $('#stampBtn');
+  var stampHint = $('#stampHint');
+  var pageNav = $('#pageNav');
+  var bigFinger = $('#bigFinger');
+  var toastEl = $('#toast');
+  var ending = $('#ending');
+
+  var STAMP_KEY = 'fuye.stamps';
+  var READER_KEY = 'fuye.reader';
+  var ANNOT_KEY = 'fuye.annotate';
+
+  function getStamps(){
+    try {
+      var v = JSON.parse(localStorage.getItem(STAMP_KEY) || '[]');
+      return Array.isArray(v) ? v.map(Number) : [];
+    } catch(e){ return []; }
+  }
+  function addStamp(n){
+    var a = getStamps();
+    if (a.indexOf(n) < 0) { a.push(n); localStorage.setItem(STAMP_KEY, JSON.stringify(a)); }
+  }
+  function readReader(){
+    try { return localStorage.getItem(READER_KEY) || '你'; } catch(e){ return '你'; }
+  }
+
+  document.title = '第' + ch.numeral + '页 · ' + ch.title + '｜肤页';
+  document.body.style.setProperty('--lvl', (id / 9).toFixed(2));
+  if (id === 9) {
+    document.body.classList.add('final-page');
+    document.getElementById('page').classList.add('soaked');
+  }
+  $('#pageNo').textContent = '第 ' + ch.numeral + ' 页';
+  $('#chip').textContent = ch.module;
+  $('#title').textContent = ch.title;
+  $('#meta').textContent = ch.girl + ' · ' + ch.desc;
+  $('#date').textContent = ch.date + ' · 她留下的：' + ch.object;
+  $('#prompt').textContent = ch.prompt;
+  $('#noteText').textContent = ch.note;
+  $('#noteKw').textContent = '关键词：' + ch.keywords;
+  $('#pending').textContent = ch.pendingNote || '';
+
+  // 批注模式
+  var noteToggle = $('#noteToggle');
+  function setAnnotate(on){
+    document.body.classList.toggle('annotate', on);
+    noteToggle.classList.toggle('on', on);
+    noteToggle.textContent = on ? '批注 · 开' : '批注';
+    try { localStorage.setItem(ANNOT_KEY, on ? '1' : '0'); } catch(e){}
+  }
+  noteToggle.addEventListener('click', function(){
+    setAnnotate(!document.body.classList.contains('annotate'));
+  });
+  var annotSaved = '0';
+  try { annotSaved = localStorage.getItem(ANNOT_KEY) || '0'; } catch(e){}
+  setAnnotate(annotSaved === '1');
+
+  // 指印进度
+  var fingerprints = $('#fingerprints');
+  function renderFingers(){
+    var got = getStamps();
+    var html = '';
+    for (var i = 1; i <= 9; i++){
+      html += '<span class="finger' + (got.indexOf(i) >= 0 ? '' : ' off') + '"></span>';
+    }
+    fingerprints.innerHTML = html;
+  }
+  renderFingers();
+
+  // 导航
+  var prevLink = $('#prevLink');
+  var nextLink = $('#nextLink');
+  if (id > 1) {
+    prevLink.href = 'page.html?id=' + (id - 1);
+  } else {
+    prevLink.style.visibility = 'hidden';
+  }
+  if (id < 9) {
+    nextLink.href = 'page.html?id=' + (id + 1);
+  } else {
+    nextLink.href = '#';
+    nextLink.textContent = '第十页 →';
+    nextLink.addEventListener('click', function(e){
+      e.preventDefault();
+      if (getStamps().length >= 9) {
+        showEnding();
+      } else {
+        toast('还差 ' + (9 - getStamps().length) + ' 页没有盖印，第十页还没有显影。');
+      }
+    });
+  }
+
+  function showNav(){
+    pageNav.classList.add('on');
+  }
+
+  // 提示
+  var toastTimer;
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('on'); }, 1800);
+  }
+
+  // 打字机
+  var typeTimer = null;
+  var fullText = ch.story.join('\n\n');
+  function startStory(){
+    storyEl.classList.add('on');
+    storyBody.textContent = '';
+    storyBody.classList.remove('done');
+    storySkip.hidden = false;
+    var i = 0;
+    typeTimer = setInterval(function(){
+      i += 3;
+      storyBody.textContent = fullText.slice(0, i);
+      if (i >= fullText.length) finishTyping();
+    }, 26);
+  }
+  function finishTyping(){
+    clearInterval(typeTimer);
+    storyBody.textContent = fullText;
+    storyBody.classList.add('done');
+    storySkip.hidden = true;
+    showStamp();
+  }
+  storySkip.addEventListener('click', finishTyping);
+
+  function showStamp(){
+    stampBar.classList.add('on');
+  }
+
+  function openReadPage(){
+    stage.style.display = 'none';
+    storyEl.classList.add('on');
+    storyBody.textContent = fullText;
+    storyBody.classList.add('done');
+    storySkip.hidden = true;
+    stampBar.classList.remove('on');
+    showNav();
+    bigFinger.classList.add('show');
+  }
+
+  // 盖章
+  stampBtn.addEventListener('click', function(){
+    addStamp(id);
+    renderFingers();
+    bigFinger.classList.add('show');
+    stampBtn.disabled = true;
+    stampBtn.textContent = '已留下指印';
+    stampHint.textContent = '这一页，再也翻不回去了。';
+    showNav();
+    if (id === 9) {
+      if (getStamps().length >= 9) {
+        setTimeout(showEnding, 1400);
+      } else {
+        stampHint.textContent = '还有 ' + (9 - getStamps().length) + ' 页没有盖印，第十页还翻不开。';
+      }
+    }
+  });
+
+  // 终章
+  function showEnding(){
+    $('#endingName').textContent = readReader();
+    $('#endingText').textContent = window.FUYE.ending.join('\n');
+    ending.classList.add('on');
+  }
+  $('#closeEnd').addEventListener('click', function(){ ending.classList.remove('on'); });
+
+  // ===== 交互 =====
+  var completed = false;
+  function complete(){
+    if (completed) return;
+    completed = true;
+    clearHint();
+    stage.classList.add('gone');
+    setTimeout(function(){
+      stage.style.display = 'none';
+      startStory();
+    }, 420);
+  }
+
+  var hintTimer = null;
+  function laterHint(fn, ms){
+    hintTimer = setTimeout(fn, ms || 10000);
+  }
+  function clearHint(){ clearTimeout(hintTimer); }
+
+  var skipBtn = $('#skip');
+  skipBtn.addEventListener('click', complete);
+
+  function buildStage(){
+    switch(ch.interaction){
+      case 'press': buildPress(); break;
+      case 'tape': buildTape(); break;
+      case 'light': buildLight(); break;
+      case 'sort': buildSort(); break;
+      case 'generate': buildGenerate(); break;
+      case 'doors': buildDoors(); break;
+      case 'timeline': buildTimeline(); break;
+      case 'label': buildLabel(); break;
+      case 'name': buildName(); break;
+      default: complete();
+    }
+  }
+
+  // 1 长按
+  function buildPress(){
+    stageBody.innerHTML = '<div class="press-zone" id="press"><span>肤</span></div><div class="stage-note" id="pressNote">按住，不要松手。</div>';
+    var pz = $('#press');
+    var note = $('#pressNote');
+    var active = false, raf = 0, t0 = 0;
+    function down(e){
+      e.preventDefault();
+      if (pz.getAttribute('data-done')) return;
+      active = true; t0 = performance.now();
+      pz.classList.add('holding');
+      note.textContent = '它在记住你的温度……';
+      tick();
+    }
+    function tick(){
+      if (!active) return;
+      var p = Math.min(1, (performance.now() - t0) / 2800);
+      pz.style.setProperty('--p', p);
+      if (p >= 1) {
+        active = false;
+        pz.setAttribute('data-done', '1');
+        note.textContent = '它记得了。';
+        setTimeout(complete, 350);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    }
+    function up(){
+      if (!active) return;
+      active = false;
+      cancelAnimationFrame(raf);
+      if (pz.getAttribute('data-done')) return;
+      pz.classList.remove('holding');
+      pz.style.setProperty('--p', 0);
+      note.textContent = '松手了，它就忘了。';
+    }
+    pz.addEventListener('pointerdown', down);
+    pz.addEventListener('pointerup', up);
+    pz.addEventListener('pointerleave', up);
+    pz.addEventListener('pointercancel', up);
+  }
+
+  // 2 磁带
+  function buildTape(){
+    var bars = '';
+    for (var i = 0; i < 42; i++){
+      bars += '<i style="height:8px"></i>';
+    }
+    stageBody.innerHTML =
+      '<div class="tape-wrap">' +
+        '<div class="tape-shell"><div class="tape-line"></div></div>' +
+        '<div class="wave" id="wave">' + bars + '</div>' +
+        '<input type="range" min="0" max="100" value="0" id="tapeRange" class="tape-range">' +
+        '<div class="tape-caption" id="tapeCap">磁带还没有转。</div>' +
+      '</div>';
+    var range = $('#tapeRange');
+    var cap = $('#tapeCap');
+    var wave = $('#wave');
+    var items = wave.querySelectorAll('i');
+    function update(){
+      var v = Number(range.value);
+      for (var i = 0; i < items.length; i++){
+        var h = 6 + Math.abs(Math.sin(i * 0.7 + v * 0.06)) * 30 * (0.25 + v / 140);
+        items[i].style.height = h.toFixed(1) + 'px';
+      }
+      wave.classList.toggle('loud', v > 55);
+      if (v < 20) cap.textContent = '磁带还没有转。';
+      else if (v < 55) cap.textContent = '有笑声，很轻。';
+      else if (v < 85) cap.textContent = '笑声开始失真了。';
+      else {
+        cap.textContent = '最后一段笑声，听完了。';
+        complete();
+      }
+    }
+    range.addEventListener('input', update);
+    update();
+  }
+
+  // 3 提灯
+  function buildLight(){
+    stageBody.innerHTML =
+      '<div class="street" id="street"><button class="flower-spot" id="flower" type="button">野花</button></div>' +
+      '<div class="street-hint" id="streetHint">移动鼠标，或用手指在巷子里划。</div>';
+    var street = $('#street');
+    var flower = $('#flower');
+    var hintEl = $('#streetHint');
+    function move(e){
+      var r = street.getBoundingClientRect();
+      var x = e.clientX - r.left;
+      var y = e.clientY - r.top;
+      street.style.setProperty('--mx', x + 'px');
+      street.style.setProperty('--my', y + 'px');
+      var fx = r.width * 0.68;
+      var fy = r.height * 0.42;
+      var d = Math.sqrt((x - fx) * (x - fx) + (y - fy) * (y - fy));
+      flower.classList.toggle('near', d < 78);
+      if (d < 78) hintEl.textContent = '这里有一点白。';
+    }
+    street.addEventListener('pointermove', move);
+    street.addEventListener('pointerdown', move);
+    flower.addEventListener('click', function(){
+      hintEl.textContent = '花还在。人不见了。';
+      complete();
+    });
+    laterHint(function(){ hintEl.textContent = '往右一点，那里有一点白。'; }, 9000);
+  }
+
+  // 4 分类
+  function buildSort(){
+    var items = [
+      { name: '她的照片', type: '影像' },
+      { name: '她的录音', type: '声音' },
+      { name: '她的游戏机', type: '交互' },
+      { name: '她扎头发的发带', type: '物件' }
+    ];
+    var slots = ['影像', '声音', '交互', '物件'];
+    var html = '<div class="sort-wrap"><div class="sort-items" id="sortItems">';
+    items.forEach(function(it, i){
+      html += '<button class="sort-item" type="button" data-i="' + i + '">' + it.name + '</button>';
+    });
+    html += '</div><div class="sort-slots" id="sortSlots">';
+    slots.forEach(function(s){
+      html += '<button class="sort-slot" type="button" data-type="' + s + '"><span>' + s + '</span></button>';
+    });
+    html += '</div></div>';
+    stageBody.innerHTML = html;
+
+    var selected = -1;
+    var doneCount = 0;
+    var itemEls = stageBody.querySelectorAll('.sort-item');
+    var slotEls = stageBody.querySelectorAll('.sort-slot');
+
+    itemEls.forEach(function(el){
+      el.addEventListener('click', function(){
+        itemEls.forEach(function(x){ x.classList.remove('sel'); });
+        el.classList.add('sel');
+        selected = Number(el.getAttribute('data-i'));
+      });
+    });
+
+    slotEls.forEach(function(slot){
+      slot.addEventListener('click', function(){
+        if (selected < 0) { toast('先选一件遗物。'); return; }
+        if (slot.classList.contains('ok')) { toast('这一格已经满了。'); return; }
+        var type = slot.getAttribute('data-type');
+        if (items[selected].type === type){
+          slot.classList.add('ok');
+          slot.innerHTML = '<span>' + type + '</span><span class="filled">' + items[selected].name + '</span>';
+          var el = stageBody.querySelector('.sort-item[data-i="' + selected + '"]');
+          el.classList.add('done');
+          doneCount++;
+          selected = -1;
+          if (doneCount >= 4){
+            setTimeout(function(){ complete(); }, 500);
+          }
+        } else {
+          slot.classList.add('shake');
+          setTimeout(function(){ slot.classList.remove('shake'); }, 400);
+          toast('她不属于这一格。');
+        }
+      });
+    });
+  }
+
+  // 5 生成
+  function buildGenerate(){
+    stageBody.innerHTML =
+      '<div class="gen-wrap">' +
+        '<input class="field" id="genInput" maxlength="10" placeholder="写下一个词，比如：糖">' +
+        '<button class="ghost-btn" id="genBtn" type="button">落笔</button>' +
+        '<div class="gen-out" id="genOut"></div>' +
+      '</div>';
+    var input = $('#genInput');
+    var btn = $('#genBtn');
+    var out = $('#genOut');
+    function render(){
+      var w = (input.value || '糖').trim().slice(0, 10);
+      out.textContent = '「' + w + '」\n\n被写进了第五页。';
+      btn.disabled = true;
+      setTimeout(complete, 1100);
+    }
+    btn.addEventListener('click', render);
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') render();
+    });
+  }
+
+  // 6 门
+  function buildDoors(){
+    var labels = ['怕忘记', '怕被忘记', '怕不被爱'];
+    var html = '<div class="doors" id="doors">';
+    labels.forEach(function(l){
+      html += '<button class="door" type="button">' + l + '</button>';
+    });
+    html += '</div>';
+    stageBody.innerHTML = html;
+    var doors = stageBody.querySelectorAll('.door');
+    doors.forEach(function(d){
+      d.addEventListener('click', function(){
+        doors.forEach(function(x){ x.classList.remove('chosen'); x.disabled = true; });
+        d.classList.add('chosen');
+        setTimeout(complete, 800);
+      });
+    });
+  }
+
+  // 7 时间轴
+  function buildTimeline(){
+    var eras = [
+      { year: '1998', name: '录像带', text: '她把笑声录进一盘磁带，标签上写着“别丢”。' },
+      { year: '2005', name: '网页', text: '她把想说的话写在博客里，后来博客关站了。' },
+      { year: '2013', name: '手机', text: '最后一条消息停在“在吗”，没有发出去。' },
+      { year: '2020', name: '虚拟空间', text: '头像还亮着，人已经不在了。' }
+    ];
+    stageBody.innerHTML =
+      '<div class="tl-wrap">' +
+        '<div class="tl-text" id="tlText">' + eras[0].text + '</div>' +
+        '<input type="range" min="0" max="3" value="0" id="tlRange" class="tape-range">' +
+        '<div class="tl-era"><span>1998</span><span>2005</span><span>2013</span><span>2020</span></div>' +
+      '</div>';
+    var range = $('#tlRange');
+    var text = $('#tlText');
+    range.addEventListener('input', function(){
+      var v = Number(range.value);
+      text.textContent = eras[v].year + ' · ' + eras[v].name + '：' + eras[v].text;
+      if (v >= 3) setTimeout(complete, 700);
+    });
+  }
+
+  // 8 展签
+  function buildLabel(){
+    stageBody.innerHTML =
+      '<div class="label-wrap">' +
+        '<input class="field" id="labelTitle" maxlength="18" value="第八页：念念">' +
+        '<div class="label-preview" id="labelPreview"></div>' +
+        '<div class="label-row"><span>标价</span><input type="range" min="0" max="99" value="0" id="labelPrice"><span class="label-price" id="priceOut">0 万</span></div>' +
+        '<button class="ghost-btn" id="labelBtn" type="button">盖章展出</button>' +
+      '</div>';
+    var title = $('#labelTitle');
+    var price = $('#labelPrice');
+    var preview = $('#labelPreview');
+    var priceOut = $('#priceOut');
+    function update(){
+      var p = Number(price.value);
+      priceOut.textContent = p + ' 万';
+      preview.innerHTML = '<b>' + (title.value || '无题') + '</b>温柔，已封存<br>作者：佚名 · 材质：肤页 · 年代：二〇〇〇年代<br>估价：' + p + ' 万元';
+    }
+    title.addEventListener('input', update);
+    price.addEventListener('input', update);
+    update();
+    $('#labelBtn').addEventListener('click', function(){
+      $('#labelBtn').disabled = true;
+      $('#labelBtn').textContent = '已展出';
+      setTimeout(complete, 900);
+    });
+  }
+
+  // 9 名字
+  function buildName(){
+    stageBody.innerHTML =
+      '<div class="name-wrap">' +
+        '<input class="field" id="readerInput" maxlength="12" placeholder="你的名字">' +
+        '<button class="ghost-btn" id="readerBtn" type="button">写进书里</button>' +
+      '</div>';
+    var input = $('#readerInput');
+    var btn = $('#readerBtn');
+    function save(){
+      var name = (input.value || '你').trim().slice(0, 12) || '你';
+      try { localStorage.setItem(READER_KEY, name); } catch(e){}
+      btn.disabled = true;
+      btn.textContent = '已写入';
+      setTimeout(complete, 900);
+    }
+    btn.addEventListener('click', save);
+    input.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') save();
+    });
+  }
+
+  // ===== 环境音与人声 =====
+  var AUDIO_KEY = 'fuye.sound';
+  var soundOn = true;
+  try { soundOn = (localStorage.getItem(AUDIO_KEY) || '1') !== '0'; } catch(e){}
+  var soundToggle = document.getElementById('soundToggle');
+  var actx = null, masterGain = null, audioReady = false, whisperTimer = null, beatTimer = null;
+
+  function paintSound(){
+    soundToggle.textContent = soundOn ? '声 · 开' : '声 · 关';
+    soundToggle.classList.toggle('on', soundOn);
+  }
+  paintSound();
+
+  var whisperLines = {
+    1: ['别走……', '我想回家。', '再陪我一会儿。'],
+    2: ['你听见了吗？', '别把笑声关掉。'],
+    3: ['巷子尽头，有一束花。'],
+    4: ['这一格，不是我的。'],
+    5: ['姐姐，我饿。', '糖……化了。'],
+    6: ['是不是我做错了什么？', '姐姐，你怎么了？'],
+    7: ['在吗……', '我没有走远。'],
+    8: ['这值多少钱？'],
+    9: ['你翻页了。', '我看见你的手指。', '别回头。']
+  };
+
+  function scheduleWhisper(delay){
+    clearTimeout(whisperTimer);
+    if (!soundOn) return;
+    whisperTimer = setTimeout(speakWhisper, delay || (id === 9 ? 9000 : 15000));
+  }
+
+  function speakWhisper(){
+    if (!soundOn || !('speechSynthesis' in window)) { scheduleWhisper(); return; }
+    var lines = whisperLines[id] || whisperLines[1];
+    var text = lines[Math.floor(Math.random() * lines.length)];
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN';
+      u.rate = 0.62;
+      u.pitch = 0.42;
+      u.volume = 0.4;
+      var vs = window.speechSynthesis.getVoices();
+      for (var i = 0; i < vs.length; i++){
+        if (/zh|Chinese/i.test(vs[i].lang) || /Huihui|Yaoyao|Kangkang/i.test(vs[i].name)) {
+          u.voice = vs[i];
+          break;
+        }
+      }
+      window.speechSynthesis.speak(u);
+    } catch(e){}
+    scheduleWhisper();
+  }
+
+  function thump(vol, freq){
+    if (!actx || !soundOn) return;
+    var o = actx.createOscillator();
+    var g = actx.createGain();
+    o.type = 'sine';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(vol, actx.currentTime + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.55);
+    o.connect(g); g.connect(masterGain);
+    o.start(); o.stop(actx.currentTime + 0.6);
+  }
+
+  function beatLoop(){
+    if (!actx || !soundOn) return;
+    thump(0.35, 46);
+    setTimeout(function(){ thump(0.18, 41); }, 320);
+    beatTimer = setTimeout(beatLoop, id === 9 ? 1200 : 2200);
+  }
+
+  function startAmbience(){
+    if (audioReady) { if (actx && actx.state === 'suspended') actx.resume(); return; }
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    actx = new Ctx();
+    masterGain = actx.createGain();
+    masterGain.gain.value = soundOn ? 0.09 : 0;
+    masterGain.connect(actx.destination);
+
+    var o1 = actx.createOscillator();
+    var o2 = actx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = 47;
+    o2.type = 'sine'; o2.frequency.value = 49.4;
+    var lp = actx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 120;
+    var dg = actx.createGain(); dg.gain.value = 0.55;
+    o1.connect(dg); o2.connect(dg); dg.connect(lp); lp.connect(masterGain);
+    o1.start(); o2.start();
+
+    var len = actx.sampleRate * 2;
+    var buf = actx.createBuffer(1, len, actx.sampleRate);
+    var data = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    var src = actx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    var bp = actx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 720; bp.Q.value = 0.65;
+    var ng = actx.createGain(); ng.gain.value = 0.12;
+    src.connect(bp); bp.connect(ng); ng.connect(masterGain);
+    src.start();
+
+    audioReady = true;
+    beatLoop();
+    scheduleWhisper(5000);
+    if ('speechSynthesis' in window) window.speechSynthesis.getVoices();
+  }
+
+  soundToggle.addEventListener('click', function(e){
+    e.stopPropagation();
+    soundOn = !soundOn;
+    paintSound();
+    try { localStorage.setItem(AUDIO_KEY, soundOn ? '1' : '0'); } catch(e){}
+    if (soundOn) {
+      startAmbience();
+      if (masterGain) masterGain.gain.value = 0.09;
+      scheduleWhisper(2500);
+    } else {
+      if (masterGain) masterGain.gain.value = 0;
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      clearTimeout(whisperTimer);
+    }
+  });
+
+  function wakeAudio(){
+    if (!soundOn) return;
+    startAmbience();
+  }
+  window.addEventListener('pointerdown', wakeAudio, { passive: true });
+  window.addEventListener('keydown', wakeAudio);
+  window.addEventListener('pagehide', function(){
+    clearTimeout(whisperTimer);
+    clearTimeout(beatTimer);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  });
+
+  // 启动
+  if (getStamps().indexOf(id) >= 0){
+    openReadPage();
+  } else {
+    buildStage();
+  }
+
+})();
+</script>
+</body>
+</html>
