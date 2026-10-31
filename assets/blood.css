@@ -1,0 +1,97 @@
+/* 血迹随页码加深；第九页整页浸红 */
+:root{--lvl:0}
+
+.blood-fixed{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 26% 18% at 6% 10%,rgba(96,6,6,.55),transparent 72%),
+    radial-gradient(ellipse 22% 30% at 94% 18%,rgba(84,4,4,.5),transparent 72%),
+    radial-gradient(ellipse 40% 20% at 46% 94%,rgba(72,3,3,.48),transparent 74%),
+    radial-gradient(ellipse 12% 22% at 28% 58%,rgba(90,5,5,.4),transparent 70%),
+    radial-gradient(circle 6px at 18% 38%,rgba(120,12,10,.55),transparent 10px),
+    radial-gradient(circle 4px at 72% 66%,rgba(120,12,10,.45),transparent 8px),
+    radial-gradient(circle 3px at 52% 22%,rgba(120,12,10,.4),transparent 7px),
+    radial-gradient(circle 5px at 88% 82%,rgba(110,8,8,.45),transparent 9px);
+  opacity:calc(.18 + var(--lvl) * .82);
+  transition:opacity .8s;
+  filter:saturate(1.15);
+}
+.blood-fixed::after{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 18% 12% at 34% 8%,rgba(110,8,8,.55),transparent 70%),
+    radial-gradient(ellipse 16% 24% at 10% 78%,rgba(100,6,6,.5),transparent 72%),
+    radial-gradient(ellipse 24% 14% at 78% 46%,rgba(96,5,5,.45),transparent 70%),
+    radial-gradient(ellipse 10% 8% at 60% 70%,rgba(120,10,10,.5),transparent 70%);
+  opacity:calc(var(--lvl) * var(--lvl) * 1.1);
+  transition:opacity .8s;
+}
+
+.paper-blood{
+  position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;
+  mix-blend-mode:multiply;
+  background:
+    radial-gradient(ellipse 18% 12% at 4% 4%,rgba(100,12,8,.5),transparent 70%),
+    radial-gradient(ellipse 14% 20% at 98% 34%,rgba(96,10,7,.45),transparent 72%),
+    radial-gradient(ellipse 26% 10% at 38% 102%,rgba(90,10,7,.45),transparent 70%),
+    radial-gradient(circle 5px at 22% 46%,rgba(110,10,8,.5),transparent 9px),
+    radial-gradient(circle 3px at 64% 12%,rgba(110,10,8,.4),transparent 7px),
+    radial-gradient(circle 4px at 82% 76%,rgba(110,10,8,.45),transparent 8px);
+  opacity:calc(.05 + var(--lvl) * .6);
+  filter:blur(.3px);
+}
+.paper-blood::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;
+  background:
+    radial-gradient(ellipse 20% 14% at 86% 8%,rgba(100,10,8,.45),transparent 70%),
+    radial-gradient(ellipse 12% 18% at 16% 88%,rgba(100,10,8,.45),transparent 72%),
+    radial-gradient(ellipse 30% 12% at 50% 58%,rgba(96,8,6,.35),transparent 70%),
+    radial-gradient(circle 6px at 42% 74%,rgba(115,10,8,.5),transparent 10px);
+  opacity:calc(var(--lvl) * .95);
+}
+
+/* 纸张上的内容压在血迹之上 */
+.page-head,.chapter-head,.stage,.story,.note,.stamp-bar,.page-nav{position:relative;z-index:2}
+
+/* 第九页：整页被浸透 */
+body.final-page{
+  background:radial-gradient(ellipse at 50% 10%,#a51f18 0%,#6a0c0a 45%,#340504 80%,#170302 100%);
+}
+body.final-page .blood-fixed{opacity:1}
+body.final-page .veil{background:radial-gradient(ellipse at 50% 40%,transparent 35%,rgba(0,0,0,.6) 100%)}
+
+.page.soaked{
+  background:
+    radial-gradient(ellipse at 28% 18%,rgba(255,190,150,.18),transparent 55%),
+    radial-gradient(ellipse at 82% 88%,rgba(40,4,3,.65),transparent 65%),
+    linear-gradient(155deg,#a3211b 0%,#7d1411 48%,#4d0806 100%);
+  box-shadow:0 0 0 1px rgba(255,180,150,.2),0 26px 70px rgba(0,0,0,.75),inset 0 0 90px rgba(30,2,2,.6);
+  color:#f4dfbe;
+}
+.page.soaked::before{
+  background:radial-gradient(circle at 0 0,rgba(30,2,2,.45),transparent 26%),
+             radial-gradient(circle at 100% 100%,rgba(30,2,2,.5),transparent 30%),
+             radial-gradient(circle at 100% 0,rgba(30,2,2,.3),transparent 22%);
+}
+.page.soaked::after{opacity:.35}
+.page.soaked .page-head,.page.soaked .back,.page.soaked .page-no,
+.page.soaked .chapter-meta,.page.soaked .chapter-date,
+.page.soaked .page-nav,.page.soaked .story-skip,.page.soaked .stamp-hint{color:#eccbaa}
+.page.soaked .page-head{border-bottom-color:rgba(255,200,170,.25)}
+.page.soaked .note-toggle{color:#f0d0b0;border-color:rgba(255,200,170,.4)}
+.page.soaked .module-chip{color:#ffdcc2;border-color:rgba(255,200,170,.5);background:rgba(255,200,170,.1)}
+.page.soaked .chapter-title{color:#fbead2;text-shadow:0 1px 0 rgba(0,0,0,.3),0 0 26px rgba(255,170,130,.25)}
+.page.soaked .chapter-rule{background:linear-gradient(90deg,transparent,#ffc9a8,transparent)}
+.page.soaked .story-body{color:#fae8cd;text-shadow:0 1px 2px rgba(40,0,0,.35)}
+.page.soaked .story-body::after{color:#ffd7b8}
+.page.soaked .note{
+  background:linear-gradient(90deg,rgba(255,200,160,.14),transparent 72%);
+  border-left-color:rgba(255,200,170,.65);color:#f6dcbd;
+}
+.page.soaked .note-title,.page.soaked .note-kw,.page.soaked .pending{color:#ffd9bc}
+.page.soaked .stamp-btn{
+  background:radial-gradient(circle at 35% 30%,#f0d2a8,#b3623c);
+  color:#3a0a06;border-color:rgba(255,230,190,.6);
+  box-shadow:0 8px 22px rgba(40,2,2,.45),inset 0 0 12px rgba(90,40,20,.35);
+}
+.page.soaked .big-finger{filter:blur(.4px) brightness(1.1)}
