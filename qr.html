@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b0d06">
+<title>血偿簿 · 扫码入卷</title>
+<style>
+:root{
+  --paper:#dcc490;
+  --ink:#2b170e;
+  --ink-soft:#5a4128;
+  --blood:#7c0c0c;
+  --serif:"Songti SC","STSong","SimSun","Noto Serif SC",serif;
+  --brush:"STKaiti","KaiTi","Kaiti SC","STSong",serif;
+}
+*{box-sizing:border-box;}
+html,body{min-height:100%;}
+body{
+  margin:0;min-height:100vh;min-height:100dvh;
+  display:flex;align-items:center;justify-content:center;
+  padding:clamp(18px,5vw,44px);
+  background:
+    radial-gradient(70% 60% at 50% 30%, rgba(70,26,8,.45), rgba(12,5,2,.92) 78%),
+    linear-gradient(180deg,#140a04,#0b0502);
+  font-family:var(--serif);color:var(--ink);
+  -webkit-tap-highlight-color:transparent;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+main{
+  position:relative;width:min(560px,100%);
+  padding:clamp(24px,6vw,44px) clamp(20px,5vw,40px) clamp(22px,5vw,34px);
+  background:
+    radial-gradient(120% 90% at 50% 30%, rgba(255,242,200,.75), rgba(255,242,200,0) 60%),
+    radial-gradient(60% 45% at 4% 2%, rgba(88,44,12,.4), transparent 72%),
+    radial-gradient(55% 45% at 98% 100%, rgba(70,28,8,.45), transparent 74%),
+    linear-gradient(180deg,#d9bf8a,#c3a165);
+  box-shadow:0 30px 70px rgba(0,0,0,.55), inset 0 0 90px rgba(40,15,4,.42);
+  border:1px solid rgba(255,230,180,.18);
+  text-align:center;
+}
+main::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  box-shadow:inset 0 0 60px 18px rgba(30,10,3,.45);
+}
+.kicker{
+  margin:0 0 6px;font-size:.68rem;letter-spacing:.55em;color:var(--blood);opacity:.9;
+}
+h1{
+  margin:0 0 6px;font-family:var(--brush);font-weight:400;
+  font-size:clamp(2rem,9vw,3rem);letter-spacing:.14em;color:#78090c;
+  text-shadow:0 1px 0 rgba(255,230,180,.5), 0 0 26px rgba(150,20,10,.35);
+}
+.hint{margin:0 0 clamp(16px,4vw,24px);font-size:.82rem;letter-spacing:.1em;color:var(--ink-soft);line-height:1.8;}
+.card{
+  width:fit-content;max-width:100%;margin:0 auto;
+  padding:14px;background:#f5e9cd;
+  border:1px solid rgba(95,14,10,.42);
+  box-shadow:0 12px 30px rgba(50,10,2,.3), inset 0 0 26px rgba(120,70,20,.14);
+  transform:rotate(-.8deg);
+}
+canvas{display:block;width:clamp(220px,64vw,340px);height:auto;image-rendering:pixelated;}
+.caption{margin:10px 0 0;font-size:.76rem;padding:0 6px;color:var(--ink-soft);word-break:break-all;line-height:1.6;}
+.urlform{
+  display:flex;gap:10px;align-items:flex-end;margin:clamp(18px,4vw,26px) 0 0;text-align:left;
+}
+.urlform label{flex:1 1 auto;font-size:.7rem;letter-spacing:.14em;color:var(--ink-soft);}
+.urlform input{
+  width:100%;margin-top:6px;padding:10px 12px;
+  background:rgba(255,244,208,.35);border:1px solid rgba(105,32,16,.35);
+  font-family:var(--serif);font-size:.85rem;color:var(--ink);outline:none;
+}
+.urlform button{
+  flex:0 0 auto;padding:11px 18px;border:0;border-radius:2px;cursor:pointer;
+  font-family:var(--brush);font-size:.92rem;letter-spacing:.2em;
+  color:#f4dcab;background:linear-gradient(180deg,#8d1512,#590606);
+  box-shadow:0 5px 14px rgba(50,4,4,.3);
+}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:clamp(16px,4vw,24px) 0 0;}
+.actions button,.actions a{
+  font-family:var(--serif);font-size:.8rem;letter-spacing:.16em;
+  color:var(--blood);text-decoration:none;background:transparent;
+  border:1px solid rgba(110,14,10,.4);padding:10px 16px;border-radius:2px;cursor:pointer;
+  transition:background .25s,border-color .25s;
+}
+.actions button:hover,.actions a:hover{background:rgba(120,14,10,.09);border-color:rgba(140,16,10,.7);}
+.tip{margin:clamp(18px,4vw,26px) 0 0;font-size:.72rem;line-height:1.9;color:var(--ink-soft);opacity:.85;}
+.foot{margin:10px 0 0;font-size:.66rem;letter-spacing:.1em;color:var(--ink-soft);opacity:.6;}
+.toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,10px);
+  background:rgba(243,231,201,.95);border:1px solid rgba(105,18,12,.4);
+  color:var(--ink);font-size:.76rem;letter-spacing:.16em;
+  padding:9px 18px;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;
+  z-index:5;
+}
+.toast.show{opacity:1;transform:translate(-50%,0);}
+</style>
+</head>
+<body>
+<main>
+  <p class="kicker">血 偿 簿 · 入 口</p>
+  <h1>扫 码 入 卷</h1>
+  <p class="hint">让手机对准下面这张方阵。无论谁、在哪片网络，纸都会在你手里翻开。</p>
+
+  <div class="card">
+    <canvas id="qrCanvas" width="600" height="600" aria-label="扫码进入残卷的二维码"></canvas>
+  </div>
+  <p class="caption" id="caption"></p>
+
+  <form class="urlform" id="urlForm">
+    <label>入口地址
+      <input id="urlInput" spellcheck="false" autocomplete="off">
+    </label>
+    <button type="submit">重 生</button>
+  </form>
+
+  <div class="actions">
+    <button id="downloadBtn" type="button">下载二维码</button>
+    <button id="copyBtn" type="button">复制链接</button>
+    <a href="index.html">返回残卷</a>
+  </div>
+
+  <p class="tip">若手机提示打不开：说明电脑上的本地服务或公网隧道已经停了。重新运行 start-public.bat，等本页地址刷新后再扫。</p>
+  <p class="foot">※ 本页为虚构的恐怖故事体验，仅供娱乐。</p>
+</main>
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script src="assets/qrcode.js"></script>
+<script>
+(function(){
+  'use strict';
+  var PUBLIC_URL = 'https://meanwhile-nil-arising-icons.trycloudflare.com/index.html';
+
+  function isLocalHost(host){
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  }
+
+  function derive(){
+    try {
+      if (location.protocol === 'file:') return PUBLIC_URL;
+      var u = new URL('index.html', location.href);
+      if (isLocalHost(u.hostname)) return PUBLIC_URL;
+      return u.href;
+    } catch (e) {
+      return PUBLIC_URL;
+    }
+  }
+
+  var params = new URLSearchParams(location.search);
+  var current = params.get('u') || derive();
+  var canvas = document.getElementById('qrCanvas');
+  var caption = document.getElementById('caption');
+  var urlInput = document.getElementById('urlInput');
+
+  function draw(text, target){
+    if (typeof qrcode !== 'function') {
+      caption.textContent = '二维码组件缺失：请确认 assets/qrcode.js 存在。';
+      return false;
+    }
+    var qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    var n = qr.getModuleCount();
+    var margin = 4;
+    var scale = Math.max(4, Math.round(target / (n + margin * 2)));
+    var size = (n + margin * 2) * scale;
+    canvas.width = size;
+    canvas.height = size;
+    var c = canvas.getContext('2d');
+    c.fillStyle = '#f3e7c9';
+    c.fillRect(0, 0, size, size);
+    c.fillStyle = '#3b1007';
+    for (var r = 0; r < n; r++) {
+      for (var col = 0; col < n; col++) {
+        if (qr.isDark(r, col)) c.fillRect((col + margin) * scale, (r + margin) * scale, scale, scale);
+      }
+    }
+    return true;
+  }
+
+  function render(url){
+    current = url;
+    urlInput.value = url;
+    if (draw(url, 700)) {
+      caption.textContent = '扫 我 ： ' + url;
+      try { history.replaceState(null, '', 'qr.html?u=' + encodeURIComponent(url)); } catch (e) {}
+    }
+  }
+
+  render(current);
+
+  // 若本地隧道重启换了地址，public-url.txt 会更新，这里自动跟随
+  if (!params.get('u')) {
+    fetch('public-url.txt', { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.text() : ''; })
+      .then(function(txt){
+        var v = (txt || '').trim();
+        if (!/^https?:\/\//i.test(v)) return;
+        var target = v.replace(/\/+$/, '') + '/index.html';
+        if (target !== current) render(target);
+      })
+      .catch(function(){});
+  }
+
+  document.getElementById('urlForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var v = urlInput.value.trim();
+    if (!v) return;
+    if (!/^https?:\/\//i.test(v)) v = 'http://' + v;
+    render(v);
+    toast('方阵已重画');
+  });
+
+  var toastTimer = null;
+  function toast(text){
+    var t = document.getElementById('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 1800);
+  }
+
+  document.getElementById('downloadBtn').addEventListener('click', function(){
+    var a = document.createElement('a');
+    a.download = '血偿簿-入口二维码.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    toast('已生成图片');
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', function(){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(current).then(function(){ toast('链接已抄下'); })
+        .catch(function(){ toast('复制失败，请手动长按'); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = current;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast('链接已抄下'); } catch (e) { toast('复制失败'); }
+      ta.remove();
+    }
+  });
+})();
+</script>
+</body>
+</html>
